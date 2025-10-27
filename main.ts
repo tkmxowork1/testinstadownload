@@ -2,9 +2,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const TOKEN = Deno.env.get("BOT_TOKEN");
-const ADMIN_ID = 7272519365;
-const CHANNELS = ["@tomymister"];
-const SECRET_PATH = "/webhook"; // change this
+const ADMIN_ID = 7171269159;
+const CHANNELS = ["@MasakoffVpns"];
+const SECRET_PATH = "/testinstadownload"; // change this
 const TELEGRAM_API = `https://api.telegram.org/bot${TOKEN}`;
 
 let botUsername: string | undefined;
@@ -296,3 +296,4 @@ serve(async (req: Request) => {
 
   return new Response("OK", { status: 200 });
 });
+
