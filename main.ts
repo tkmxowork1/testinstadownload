@@ -10,19 +10,34 @@ const TELEGRAM_API = `https://api.telegram.org/bot${TOKEN}`;
 let botUsername: string | undefined;
 
 async function getInstagramVideoUrl(instUrl: string): Promise<string | null> {
+  const match = instUrl.match(/\/(p|reel)\/([^/?]+)/);
+  if (!match) {
+    // For stories, not supported yet
+    return null;
+  }
+  const shortcode = match[2];
+
+  const graphql = new URL("https://www.instagram.com/api/graphql");
+  graphql.searchParams.set("variables", JSON.stringify({ shortcode }));
+  graphql.searchParams.set("doc_id", "10015901848480474");
+  graphql.searchParams.set("lsd", "AVqbxe3J_YA");
+
   try {
-    const res = await fetch(instUrl, {
+    const res = await fetch(graphql.toString(), {
+      method: "POST",
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-      }
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-IG-App-ID": "936619743392459",
+        "X-FB-LSD": "AVqbxe3J_YA",
+        "X-ASBD-ID": "129477",
+        "Sec-Fetch-Site": "same-origin",
+      },
     });
     if (!res.ok) return null;
-    const html = await res.text();
-    const match = html.match(/<meta property="og:video" content="([^"]+)" ?>/);
-    if (match && match[1]) {
-      return match[1];
-    }
-    return null;
+    const json = await res.json();
+    const videoUrl = json?.data?.xdt_shortcode_media?.video_url;
+    return videoUrl || null;
   } catch (e) {
     console.error(e);
     return null;
@@ -159,7 +174,7 @@ serve(async (req: Request) => {
       try {
         const videoUrl = await getInstagramVideoUrl(url);
         if (!videoUrl) {
-          throw new Error("Could not extract video URL");
+          throw new Error("Could not extract video URL. Stories may not be supported yet.");
         }
 
         if (!botUsername) {
