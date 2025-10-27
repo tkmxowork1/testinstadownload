@@ -2,46 +2,90 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const TOKEN = Deno.env.get("BOT_TOKEN");
-const ADMIN_ID = 7171269159;
-const CHANNELS = ["@MasakoffVpns"];
-const SECRET_PATH = "/testinstadownload"; // change this
+const ADMIN_ID = 7272519365;
+const CHANNELS = ["@tomymister"];
+const SECRET_PATH = "/webhook"; // change this
 const TELEGRAM_API = `https://api.telegram.org/bot${TOKEN}`;
 
 let botUsername: string | undefined;
 
-async function getInstagramVideoUrl(instUrl: string): Promise<string | null> {
-  const match = instUrl.match(/\/(p|reel)\/([^/?]+)/);
-  if (!match) {
-    // For stories, not supported yet
-    return null;
-  }
-  const shortcode = match[2];
+async function getInstagramMedia(instUrl: string): Promise<{ type: 'photo' | 'video'; url: string } | null> {
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "X-IG-App-ID": "936619743392459",
+    "Sec-Fetch-Site": "same-origin",
+  };
 
-  const graphql = new URL("https://www.instagram.com/api/graphql");
-  graphql.searchParams.set("variables", JSON.stringify({ shortcode }));
-  graphql.searchParams.set("doc_id", "10015901848480474");
-  graphql.searchParams.set("lsd", "AVqbxe3J_YA");
+  // Handle posts, reels, IGTV
+  const postMatch = instUrl.match(/\/(p|reel|tv)\/([^/?]+)/);
+  if (postMatch) {
+    const shortcode = postMatch[2];
+    const graphql = new URL("https://www.instagram.com/api/graphql");
+    graphql.searchParams.set("variables", JSON.stringify({ shortcode }));
+    graphql.searchParams.set("doc_id", "10015901848480474");
+    graphql.searchParams.set("lsd", "AVqbxe3J_YA");
 
-  try {
-    const res = await fetch(graphql.toString(), {
-      method: "POST",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "X-IG-App-ID": "936619743392459",
-        "X-FB-LSD": "AVqbxe3J_YA",
-        "X-ASBD-ID": "129477",
-        "Sec-Fetch-Site": "same-origin",
-      },
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    const videoUrl = json?.data?.xdt_shortcode_media?.video_url;
-    return videoUrl || null;
-  } catch (e) {
-    console.error(e);
-    return null;
+    try {
+      const res = await fetch(graphql.toString(), {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-FB-LSD": "AVqbxe3J_YA",
+          "X-ASBD-ID": "129477",
+        },
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      const media = json?.data?.xdt_shortcode_media;
+      if (!media) return null;
+
+      let item = media;
+      if (media.carousel_children) {
+        item = media.carousel_children[0];
+      }
+
+      if (item.video_versions && item.video_versions.length > 0) {
+        return { type: 'video', url: item.video_versions[0].url };
+      } else if (item.image_versions2 && item.image_versions2.candidates.length > 0) {
+        return { type: 'photo', url: item.image_versions2.candidates[0].url };
+      }
+      return null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
   }
+
+  // Handle stories
+  const storyMatch = instUrl.match(/\/stories\/([^/]+)\/([^/?]+)/);
+  if (storyMatch) {
+    const media_pk = storyMatch[2];
+    const infoUrl = `https://www.instagram.com/api/v1/media/${media_pk}/info/`;
+
+    try {
+      const res = await fetch(infoUrl, {
+        method: "GET",
+        headers,
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      const item = json?.items?.[0];
+      if (!item) return null;
+
+      if (item.video_versions && item.video_versions.length > 0) {
+        return { type: 'video', url: item.video_versions[0].url };
+      } else if (item.image_versions2 && item.image_versions2.candidates.length > 0) {
+        return { type: 'photo', url: item.image_versions2.candidates[0].url };
+      }
+      return null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+  return null;
 }
 
 serve(async (req: Request) => {
@@ -172,9 +216,9 @@ serve(async (req: Request) => {
       const waitId = waitJson.result.message_id;
 
       try {
-        const videoUrl = await getInstagramVideoUrl(url);
-        if (!videoUrl) {
-          throw new Error("Could not extract video URL. Stories may not be supported yet.");
+        const media = await getInstagramMedia(url);
+        if (!media) {
+          throw new Error("Could not extract media URL. Ensure the content is public and supported.");
         }
 
         if (!botUsername) {
@@ -189,12 +233,15 @@ serve(async (req: Request) => {
           ]
         };
 
-        await fetch(`${TELEGRAM_API}/sendVideo`, {
+        const sendMethod = media.type === 'video' ? 'sendVideo' : 'sendPhoto';
+        const mediaKey = media.type === 'video' ? 'video' : 'photo';
+
+        await fetch(`${TELEGRAM_API}/${sendMethod}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: chatId,
-            video: videoUrl,
+            [mediaKey]: media.url,
             caption: `📥 Alyndy!\n\nBot: @${botUsername}`,
             reply_markup: markup,
             parse_mode: "HTML"
