@@ -85,8 +85,7 @@ serve(async (req: Request) => {
     }
     return true;
   }
-
-try {
+  try {
     if (text?.startsWith("/start")) {
       const subscribed = await isSubscribed(userId);
       if (subscribed) {
@@ -200,7 +199,6 @@ try {
             parse_mode: "HTML"
           })
         });
-
 await fetch(${TELEGRAM_API}/deleteMessage, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -249,5 +247,3 @@ await fetch(${TELEGRAM_API}/deleteMessage, {
 
   return new Response("OK", { status: 200 });
 });
-
-
