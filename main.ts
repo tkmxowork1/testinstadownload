@@ -86,7 +86,6 @@ serve(async (req: Request) => {
     return true;
   }
 
-𝗠𝗔𝗦𝗔𝗞𝗢𝗙𝗙, [12/22/2025 9:17 PM]
 try {
     if (text?.startsWith("/start")) {
       const subscribed = await isSubscribed(userId);
@@ -202,7 +201,6 @@ try {
           })
         });
 
-𝗠𝗔𝗦𝗔𝗞𝗢𝗙𝗙, [12/22/2025 9:17 PM]
 await fetch(${TELEGRAM_API}/deleteMessage, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -251,4 +249,5 @@ await fetch(${TELEGRAM_API}/deleteMessage, {
 
   return new Response("OK", { status: 200 });
 });
+
 
