@@ -1,4 +1,3 @@
-𝗠𝗔𝗦𝗔𝗞𝗢𝗙𝗙, [12/22/2025 9:17 PM]
 // main.ts
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
@@ -252,3 +251,4 @@ await fetch(${TELEGRAM_API}/deleteMessage, {
 
   return new Response("OK", { status: 200 });
 });
+
